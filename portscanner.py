@@ -59,6 +59,7 @@ def main():
 
     for port in sorted(results.keys()):
         print(results[port])
+    print(results)
 
 if __name__ == "__main__":
     main()

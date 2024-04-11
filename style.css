@@ -1,0 +1,37 @@
+MainFrame {
+  layout: vertical; 
+  min-width: 100;
+
+
+}
+
+DataInputSection {
+  layout: horizontal;
+  margin: 1;
+  content-align: right middle;
+  padding: 1;
+  min-height: 5;
+  /* display: none; */
+  background: $boost;
+}
+
+DataInputSection #ip_input {
+  min-width: 10;
+  max-width: 25;
+}
+
+DataInputSection #start_port_input,
+DataInputSection #end_port_input {
+  min-width: 10;
+  max-width: 15;
+}
+
+#start_btn {
+  dock: right;
+  min-width: 2;
+  margin-left: 2;
+}
+
+ScannedSummarySection {
+    margin: 1;
+}
