@@ -22,7 +22,6 @@ class MainFrame(Static):
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
-        # self.app.exit()
         self.add_class("scan_started")
         # self.remove_class("scan_started")
         summary_ui = self.query_one("ScannedSummarySection")
@@ -62,18 +61,17 @@ class ScannedSummarySection(Static):
         data = self.summary_data
         self.update(data)
 
-
+COLUMN = ("Port Number", "Status", "Service Running")
 ROWS = [
-    ("lane", "swimmer", "country", "time"),
-    (4, "Joseph Schooling", "Singapore", 50.39),
-    (2, "Michael Phelps", "United States", 51.14),
-    (5, "Chad le Clos", "South Africa", 51.14),
-    (6, "László Cseh", "Hungary", 51.14),
-    (3, "Li Zhuhao", "China", 51.26),
-    (8, "Mehdy Metella", "France", 51.58),
-    (7, "Tom Shields", "United States", 51.73),
-    (1, "Aleksandr Sadovnikov", "Russia", 51.84),
-    (10, "Darren Burns", "Scotland", 51.84),
+    (4, "Joseph Schooling", "Singapore"),
+    (2, "Michael Phelps", "United States"),
+    (5, "Chad le Clos", "South Africa"),
+    (6, "László Cseh", "Hungary"),
+    (3, "Li Zhuhao", "China"),
+    (8, "Mehdy Metella", "France"),
+    (7, "Tom Shields", "United States"),
+    (1, "Aleksandr Sadovnikov", "Russia"),
+    (10, "Darren Burns", "Scotland"),
 ]
 
 
@@ -85,8 +83,8 @@ class ScannedPortDataSection(Static):
 
     def on_mount(self):
         table = self.query_one(DataTable)
-        table.add_columns(*ROWS[0])
-        table.add_rows(ROWS[1:])
+        table.add_columns(*COLUMN)
+        table.add_rows(ROWS)
 
 
 class PortScannerApp(App):
