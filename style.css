@@ -32,6 +32,14 @@ DataInputSection #end_port_input {
   margin-left: 2;
 }
 
+.scan_started #start_btn{
+    display: none;
+}
+
+.scan_stopped #start_btn{
+    display: block;
+}
+
 ScannedSummarySection {
     margin: 1;
 }
