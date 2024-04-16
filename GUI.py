@@ -98,7 +98,8 @@ class PortScannerApp(App):
     #   but the reference should not have the prefix when referencing
     # description: just the description of the binding
     BINDINGS = [
-        ("d", "toggle_dark_mode", "Toggle dark mode"),
+        ("d", "toggle_dark_mode", "Toggle Dark Mode"),
+        ("q", "exit_app", "Exit App"),
     ]
 
     # to reference the path for the CSS stylesheet
@@ -118,6 +119,9 @@ class PortScannerApp(App):
 
     def action_toggle_dark_mode(self):
         self.dark = not self.dark
+        
+    def action_exit_app(self):
+        self.app.exit()
 
 
 if __name__ == "__main__":
