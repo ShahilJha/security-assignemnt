@@ -2,17 +2,6 @@ import socket
 import threading
 import time
 
-def banner_grab(ip, port):
-    """Attempt to grab the banner from the specified port."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(1)
-            sock.connect((ip, port))
-            sock.sendall(b'WhoAreYou\r\n')
-            banner = sock.recv(1024).decode().strip()
-            return banner
-    except:
-        return None
 
 def scan_port(ip, port, results):
     """Scan a single port."""
@@ -22,8 +11,6 @@ def scan_port(ip, port, results):
             result = s.connect_ex((ip, port))
             if result == 0:
                 service = socket.getservbyport(port, 'tcp') if port <= 1024 else 'Unknown service'
-                banner = banner_grab(ip, port)
-                # results[port] = f"Port {port}: OPEN (Service: {service}, Banner: {banner})"
                 results[port] = f"Port {port}: OPEN (Service: {service}"
             elif result == 10061:
                 results[port] = f"Port {port}: CLOSED"
