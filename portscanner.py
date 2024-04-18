@@ -1,44 +1,43 @@
 import socket
-import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
-
-def scan_port(ip, port, results):
-    """Scan a single port."""
+def scan_port(ip, port):
+    """Scan a single port and return the result as a dictionary."""
+    result_dict = {}
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
             result = s.connect_ex((ip, port))
             if result == 0:
                 service = socket.getservbyport(port, 'tcp') if port <= 1024 else 'Unknown service'
-                results[port] = f"Port {port}: OPEN (Service: {service}"
+                result_dict[port] = f"Port {port}: OPEN (Service: {service})"
             elif result == 10061:
-                results[port] = f"Port {port}: CLOSED"
+                result_dict[port] = f"Port {port}: CLOSED"
             else:
-                results[port] = f"Port {port}: FILTERED"
+                result_dict[port] = f"Port {port}: FILTERED"
     except Exception as e:
-        results[port] = f"Error scanning port {port}: {e}"
+        result_dict[port] = f"Error scanning port {port}: {e}"
+    return result_dict
 
 def main():
     ip = input("Enter IP address to scan: ")
     start_port = int(input("Enter start port: "))
     end_port = int(input("Enter end port: "))
-
-    threads = []
+    
     results = {}
     start_time = time.time()
 
-    for port in range(start_port, end_port + 1):
-        thread = threading.Thread(target=scan_port, args=(ip, port, results))
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
+    # Use ThreadPoolExecutor to manage threading
+    with ThreadPoolExecutor(max_workers=100) as executor:
+        futures = [executor.submit(scan_port, ip, port) for port in range(start_port, end_port + 1)]
+        for future in as_completed(futures):
+            results.update(future.result())
 
     end_time = time.time()
     scan_duration = end_time - start_time
 
+    # Print scan report
     print(f"Scan Report for {ip}")
     print(f"Scan Start Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
     print(f"Scan End Time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}")
@@ -46,7 +45,6 @@ def main():
 
     for port in sorted(results.keys()):
         print(results[port])
-    print(results)
 
 if __name__ == "__main__":
     main()
