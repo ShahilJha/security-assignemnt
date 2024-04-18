@@ -1,5 +1,6 @@
 # textual run --dev GUI.py
 from textual import on
+import json
 from textual.app import App
 from textual.containers import ScrollableContainer
 from textual.reactive import reactive
@@ -14,18 +15,55 @@ from textual.widgets import (
     LoadingIndicator,
 )
 
+class Utils:
+
+    def convert_to_csv(self, rows):
+        """
+        Converts a list of tuples into a single CSV string.
+        """
+        # Convert each tuple to a string with elements separated by '+'
+        converted_rows = ["+".join(str(item) for item in row) for row in rows]
+
+        # Join all the stringified tuples into a CSV format
+        csv_result = ",".join(converted_rows)
+
+        return csv_result
+
+    def revert_from_csv(self, csv_string):
+        """
+        Reverts a CSV formatted string (with internal '+' symbol concatenation for tuple data) back to the original list of tuples format.
+        """
+        # Split the CSV string by commas to separate the individual tuple strings
+        tuple_strings = csv_string.split(",")
+        
+        # Split each tuple string by '+' and convert them appropriately
+        original_rows = [tuple(int(item) if item.isdigit() else item for item in tuple_string.split("+")) for tuple_string in tuple_strings]
+        
+        return original_rows
+
 
 class MainFrame(Static):
     """the main framework for the application"""
+    temp = reactive("asdfa")
+    
+    @on(Input.Changed,"#ip_input")
+    def update_ip_data(self):
+        data = self.query_one("#ip_input")
+        self.temp = data.value
+        self.update(data.value)
 
     # refer a method for onPressed button
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
-        self.add_class("scan_started")
+        # self.add_class("scan_started")
         # self.remove_class("scan_started")
+        
+        
+       
+        
         summary_ui = self.query_one("ScannedSummarySection")
-        summary_ui.summary_data = f"Scan Report for IP Adress: \nStarting port \nEnding Port: \nScan Start Time: \nScan End Time: \nScan Duration:"
+        summary_ui.summary_data = f"{self.temp} \nScan Report for IP Adress: \nStarting port \nEnding Port: \nScan Start Time: \nScan End Time: \nScan Duration:"
 
     def compose(self):
         with ScrollableContainer():
@@ -75,16 +113,25 @@ ROWS = [
 ]
 
 
+
 class ScannedPortDataSection(Static):
     """WIdget to show the port data"""
+    util = Utils()
+    
+    table_data = reactive(util.convert_to_csv([("", "", "")]))
 
+    def watch_table_data(self):
+        data = self.table_data
+        self.update(data)
+        
     def compose(self):
         yield DataTable()
 
     def on_mount(self):
         table = self.query_one(DataTable)
         table.add_columns(*COLUMN)
-        table.add_rows(ROWS)
+        table.add_rows(self.util.revert_from_csv(self.table_data))
+        # table.add_rows(ROWS)
 
 
 class PortScannerApp(App):
