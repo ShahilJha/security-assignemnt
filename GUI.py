@@ -83,7 +83,6 @@ class Utils:
         return data[key]
 
 
-
 class MainFrame(Static):
     """the main framework for the application"""
     util = Utils()
@@ -97,13 +96,19 @@ class MainFrame(Static):
     }
     converted_data = reactive(util.serialize_data(data))
     
-    @on(Input.Changed,"#ip_input")
+    @on(Input.Changed,"#ip_input,#start_port_input,#end_port_input")
     def update_ip_data(self):
-        data = self.query_one("#ip_input")
-        # self.converted_data = data.value
-        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "ip", data.value)
-        self.update(data.value)
-
+        ip_data = self.query_one("#ip_input")
+        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "ip", ip_data.value)
+        # self.update(ip_data.value)
+        
+        start_port_data = self.query_one("#start_port_input")
+        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "start_port", start_port_data.value)
+        
+        end_port_data = self.query_one("#end_port_input")
+        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "end_port", end_port_data.value)
+        
+    
     # refer a method for onPressed button
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
