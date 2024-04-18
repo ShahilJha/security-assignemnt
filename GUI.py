@@ -188,6 +188,9 @@ class MainFrame(Static):
         end_time = self.util.get_value(self.converted_data, "end_time")
         scan_duration = self.util.get_value(self.converted_data, "scan_duration")
         
+        #start the port scanning
+        
+        #display scan results or error if any
         summary_ui.summary_data = f"Scan Report for IP Adress: {ip} \nStarting port: {start_port} \nEnding Port: {end_port} \nScan Start Time: {start_time} \nScan End Time: {end_time} \nScan Duration: {scan_duration}"
 
     def compose(self):
@@ -225,17 +228,17 @@ class ScannedSummarySection(Static):
         self.update(data)
 
 COLUMN = ("Port Number", "Status", "Service Running")
-ROWS = [
-    (4, "Joseph Schooling", "Singapore"),
-    (2, "Michael Phelps", "United States"),
-    (5, "Chad le Clos", "South Africa"),
-    (6, "László Cseh", "Hungary"),
-    (3, "Li Zhuhao", "China"),
-    (8, "Mehdy Metella", "France"),
-    (7, "Tom Shields", "United States"),
-    (1, "Aleksandr Sadovnikov", "Russia"),
-    (10, "Darren Burns", "Scotland"),
-]
+# ROWS = [
+#     (4, "Joseph Schooling", "Singapore"),
+#     (2, "Michael Phelps", "United States"),
+#     (5, "Chad le Clos", "South Africa"),
+#     (6, "László Cseh", "Hungary"),
+#     (3, "Li Zhuhao", "China"),
+#     (8, "Mehdy Metella", "France"),
+#     (7, "Tom Shields", "United States"),
+#     (1, "Aleksandr Sadovnikov", "Russia"),
+#     (10, "Darren Burns", "Scotland"),
+# ]
 
 
 
