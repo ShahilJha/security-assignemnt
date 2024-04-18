@@ -41,15 +41,67 @@ class Utils:
         
         return original_rows
 
+    # Function to convert dictionary to a JSON string
+    def serialize_data(self, rows):
+        # Using json.dumps() to convert dict to a JSON string
+        return json.dumps(rows)
+
+    # Function to convert JSON string back to ldictionary
+    def deserialize_data(self, json_string):
+        # Using json.loads() to convert JSON string back to Python object
+        return json.loads(json_string)
+    
+    def update_and_serialize_data(self, json_string, key, update_value):
+        """
+        Deserializes the JSON data, updates it using the provided key and value,
+        then serializes it back to a JSON string.
+        """
+        # Deserialize the JSON string to a Python dictionary
+        data = self.deserialize_data(json_string)
+        
+        # Check if the key exists in the dictionary
+        if key not in data:
+            raise KeyError(f"Key '{key}' not found in the data.")
+        
+        # Update the value associated with the key
+        data[key] = update_value
+        
+        # Serialize the updated dictionary back to a JSON string
+        updated_json_string = self.serialize_data(data)
+        return updated_json_string
+    
+    
+    def get_value(self, json_string, key):
+        """
+        Deserializes the JSON data and returns the value corresponding to the provided key.
+        """
+        data = self.deserialize_data(json_string)
+        
+        if key not in data:
+            raise KeyError(f"Key '{key}' not found in the data.")
+        
+        return data[key]
+
+
 
 class MainFrame(Static):
     """the main framework for the application"""
-    temp = reactive("asdfa")
+    util = Utils()
+    data = {
+        "ip" : "",
+        "start_port" : 0,
+        "end_port" : 0,
+        "start_time" : "",
+        "end_time" : "",
+        "scan_duration" : "",
+    }
+    converted_data = reactive(util.serialize_data(data))
     
     @on(Input.Changed,"#ip_input")
     def update_ip_data(self):
         data = self.query_one("#ip_input")
-        self.temp = data.value
+        # self.converted_data = data.value
+        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "ip", data.value)
         self.update(data.value)
 
     # refer a method for onPressed button
@@ -58,12 +110,15 @@ class MainFrame(Static):
     def pressed_start(self):
         # self.add_class("scan_started")
         # self.remove_class("scan_started")
-        
-        
-       
-        
         summary_ui = self.query_one("ScannedSummarySection")
-        summary_ui.summary_data = f"{self.temp} \nScan Report for IP Adress: \nStarting port \nEnding Port: \nScan Start Time: \nScan End Time: \nScan Duration:"
+        ip = self.util.get_value(self.converted_data, "ip")
+        start_port = self.util.get_value(self.converted_data, "start_port")
+        end_port = self.util.get_value(self.converted_data, "end_port")
+        start_time = self.util.get_value(self.converted_data, "start_time")
+        end_time = self.util.get_value(self.converted_data, "end_time")
+        scan_duration = self.util.get_value(self.converted_data, "scan_duration")
+        
+        summary_ui.summary_data = f"Scan Report for IP Adress: {ip} \nStarting port: {start_port} \nEnding Port: {end_port} \nScan Start Time: {start_time} \nScan End Time: {end_time} \nScan Duration: {scan_duration}"
 
     def compose(self):
         with ScrollableContainer():
