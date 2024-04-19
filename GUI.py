@@ -85,6 +85,14 @@ class Utils:
         
         return data[key]
 
+    def dict_to_list_of_tuples(self, input_dict):
+        """
+        Convert a dictionary with tuple values into a list of tuples sorted by dictionary keys.
+        """
+        # Sorting the dictionary by keys and creating a list of tuples from the values
+        sorted_tuples = sorted(input_dict.items())
+        return [value for _, value in sorted_tuples]
+
 class PortScanner:
     def __init__(self, ip, start_port, end_port, max_threads=100):
         self.ip = ip
@@ -103,21 +111,24 @@ class PortScanner:
 
     def scan_port(self, port):
         """Scan a single port and return the result as a dictionary."""
-        result_dict = {}
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(1)
                 result = s.connect_ex((self.ip, port))
                 if result == 0:
-                    service = socket.getservbyport(port, 'tcp') if port <= 1024 else 'Unknown service'
-                    result_dict[port] = f"Port {port}: OPEN (Service: {service})"
+                    service = socket.getservbyport(port, 'tcp')
+                    status = 'OPEN'
                 elif result == 10061:
-                    result_dict[port] = f"Port {port}: CLOSED"
+                    service = 'UNKNOWN'
+                    status = 'CLOSED'
                 else:
-                    result_dict[port] = f"Port {port}: FILTERED"
+                    service = 'UNKNOWN'
+                    status = 'FILTERED'
+                
+                self.results[port] = (port, status, service)
         except Exception as e:
-            result_dict[port] = f"Error scanning port {port}: {e}"
-        return result_dict
+            self.results[port] = (port, 'ERROR', str(e))
+
 
     def perform_scan(self):
         """Perform the port scan using ThreadPoolExecutor for managing threads."""
@@ -125,7 +136,7 @@ class PortScanner:
         with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
             futures = [executor.submit(self.scan_port, port) for port in range(self.start_port, self.end_port + 1)]
             for future in as_completed(futures):
-                self.results.update(future.result())
+                future.result()
         end_time = time.time()
 
         # Adding timing info to results dictionary
@@ -186,7 +197,7 @@ class MainFrame(Static):
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
-        self.add_class("scan_started")
+        # self.add_class("scan_started")
         summary_ui = self.query_one("ScannedSummarySection")
         ip = self.util.get_value(self.converted_data, "ip")
         start_port = self.util.get_value(self.converted_data, "start_port")
@@ -199,13 +210,15 @@ class MainFrame(Static):
         portScanner = PortScanner(ip=ip, start_port=int(start_port), end_port=int(end_port))
         result_data = portScanner.perform_scan()
         result_summary = portScanner.get_scan_data()
-        table_ui = self.query_one("ScannedPortDataSection")
-        # table_ui.table_data = 
         
         #display scan results or error if any
-        summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']}"
-        # summary_ui.summary_data = str(type(start_port))
-        self.remove_class("scan_started")
+        summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} "
+        
+        table_ui = self.query_one("#table_data")        
+        table_ui.table_data = self.util.convert_to_csv(self.util.dict_to_list_of_tuples(result_data))
+        # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
+        
+        # self.remove_class("scan_started")
         
         
 
@@ -213,7 +226,7 @@ class MainFrame(Static):
         with ScrollableContainer():
             yield DataInputSection()
             yield ScannedSummarySection(id="summary")
-            yield ScannedPortDataSection()
+            yield ScannedPortDataSection(id="table_data")
 
 
 class DataInputSection(Static):
@@ -243,30 +256,20 @@ class ScannedSummarySection(Static):
         data = self.summary_data
         self.update(data)
 
+
 COLUMN = ("Port Number", "Status", "Service Running")
-# ROWS = [
-#     (4, "Joseph Schooling", "Singapore"),
-#     (2, "Michael Phelps", "United States"),
-#     (5, "Chad le Clos", "South Africa"),
-#     (6, "László Cseh", "Hungary"),
-#     (3, "Li Zhuhao", "China"),
-#     (8, "Mehdy Metella", "France"),
-#     (7, "Tom Shields", "United States"),
-#     (1, "Aleksandr Sadovnikov", "Russia"),
-#     (10, "Darren Burns", "Scotland"),
-# ]
-
-
-
 class ScannedPortDataSection(Static):
     """WIdget to show the port data"""
     util = Utils()
     
-    table_data = reactive(util.convert_to_csv([("", "", "")]))
+    table_data = reactive("")
 
     def watch_table_data(self):
         data = self.table_data
         self.update(data)
+        table = self.query_one(DataTable)
+        table.clear()
+        table.add_rows(self.util.revert_from_csv(data))
         
     def compose(self):
         yield DataTable()
@@ -274,8 +277,7 @@ class ScannedPortDataSection(Static):
     def on_mount(self):
         table = self.query_one(DataTable)
         table.add_columns(*COLUMN)
-        table.add_rows(self.util.revert_from_csv(self.table_data))
-        # table.add_rows(ROWS)
+        # table.add_rows(self.util.revert_from_csv(self.table_data))
 
 
 class PortScannerApp(App):

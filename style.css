@@ -43,3 +43,7 @@ DataInputSection #end_port_input {
 ScannedSummarySection {
     margin: 1;
 }
+
+#table_data{
+    height: 40;
+}
