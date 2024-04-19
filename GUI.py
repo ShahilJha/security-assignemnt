@@ -12,11 +12,14 @@ from textual.widgets import (
     Label,
     Input,
     DataTable,
-    LoadingIndicator,
+    Pretty,
 )
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from textual.validation import Function, Number, ValidationResult, Validator
 import time
+import re
+
 
 class Utils:
 
@@ -38,10 +41,16 @@ class Utils:
         """
         # Split the CSV string by commas to separate the individual tuple strings
         tuple_strings = csv_string.split(",")
-        
+
         # Split each tuple string by '+' and convert them appropriately
-        original_rows = [tuple(int(item) if item.isdigit() else item for item in tuple_string.split("+")) for tuple_string in tuple_strings]
-        
+        original_rows = [
+            tuple(
+                int(item) if item.isdigit() else item
+                for item in tuple_string.split("+")
+            )
+            for tuple_string in tuple_strings
+        ]
+
         return original_rows
 
     # Function to convert dictionary to a JSON string
@@ -53,7 +62,7 @@ class Utils:
     def deserialize_data(self, json_string):
         # Using json.loads() to convert JSON string back to Python object
         return json.loads(json_string)
-    
+
     def update_and_serialize_data(self, json_string, key, update_value):
         """
         Deserializes the JSON data, updates it using the provided key and value,
@@ -61,28 +70,27 @@ class Utils:
         """
         # Deserialize the JSON string to a Python dictionary
         data = self.deserialize_data(json_string)
-        
+
         # Check if the key exists in the dictionary
         if key not in data:
             raise KeyError(f"Key '{key}' not found in the data.")
-        
+
         # Update the value associated with the key
         data[key] = update_value
-        
+
         # Serialize the updated dictionary back to a JSON string
         updated_json_string = self.serialize_data(data)
         return updated_json_string
-    
-    
+
     def get_value(self, json_string, key):
         """
         Deserializes the JSON data and returns the value corresponding to the provided key.
         """
         data = self.deserialize_data(json_string)
-        
+
         if key not in data:
             raise KeyError(f"Key '{key}' not found in the data.")
-        
+
         return data[key]
 
     def dict_to_list_of_tuples(self, input_dict):
@@ -92,6 +100,49 @@ class Utils:
         # Sorting the dictionary by keys and creating a list of tuples from the values
         sorted_tuples = sorted(input_dict.items())
         return [value for _, value in sorted_tuples]
+
+    def is_valid_ip(self, ip_address):
+        """
+        Validate an IP address using regular expression.
+        """
+        # Regular expression for matching an IPv4 address
+        ip_pattern = r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        if re.match(ip_pattern, ip_address):
+            return True
+        else:
+            return False
+        
+    def check_input_validity(self, ip_address, start_port, end_port):
+        errors = []
+        # 1. Check if any input is empty
+        if not ip_address:
+            errors.append("IP address is empty.")
+        if start_port is None:
+            errors.append("Starting port is not provided.")
+        if end_port is None:
+            errors.append("Ending port is not provided.")
+
+        # 2. Validate the IP address
+        if ip_address and not self.is_valid_ip(ip_address):
+            errors.append(f"The IP address '{ip_address}' is not valid.")
+
+        # 3. Check if the ports are integers and within valid range
+        try:
+            start_port = int(start_port)
+            if not (0 <= start_port <= 65534):
+                errors.append("Starting port must be between 0 and 65534.")
+        except (ValueError, TypeError):
+            errors.append("Starting port must be an integer.")
+
+        try:
+            end_port = int(end_port)
+            if not (1 <= end_port <= 65535):
+                errors.append("Ending port must be between 1 and 65535.")
+        except (ValueError, TypeError):
+            errors.append("Ending port must be an integer.")
+
+        return errors
+
 
 class PortScanner:
     def __init__(self, ip, start_port, end_port, max_threads=100):
@@ -116,33 +167,39 @@ class PortScanner:
                 s.settimeout(1)
                 result = s.connect_ex((self.ip, port))
                 if result == 0:
-                    service = socket.getservbyport(port, 'tcp')
-                    status = 'OPEN'
+                    service = socket.getservbyport(port, "tcp")
+                    status = "OPEN"
                 elif result == 10061:
-                    service = 'UNKNOWN'
-                    status = 'CLOSED'
+                    service = "UNKNOWN"
+                    status = "CLOSED"
                 else:
-                    service = 'UNKNOWN'
-                    status = 'FILTERED'
-                
+                    service = "UNKNOWN"
+                    status = "FILTERED"
+
                 self.results[port] = (port, status, service)
         except Exception as e:
-            self.results[port] = (port, 'ERROR', str(e))
-
+            self.results[port] = (port, "ERROR", str(e))
 
     def perform_scan(self):
         """Perform the port scan using ThreadPoolExecutor for managing threads."""
         start_time = time.time()
         with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
-            futures = [executor.submit(self.scan_port, port) for port in range(self.start_port, self.end_port + 1)]
+            futures = [
+                executor.submit(self.scan_port, port)
+                for port in range(self.start_port, self.end_port + 1)
+            ]
             for future in as_completed(futures):
                 future.result()
         end_time = time.time()
 
         # Adding timing info to results dictionary
-        self.scan_metadata['start_time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))
-        self.scan_metadata['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
-        self.scan_metadata['scan_duration'] = f"{end_time - start_time:.2f} seconds"
+        self.scan_metadata["start_time"] = time.strftime(
+            "%Y-%m-%d %H:%M:%S", time.localtime(start_time)
+        )
+        self.scan_metadata["end_time"] = time.strftime(
+            "%Y-%m-%d %H:%M:%S", time.localtime(end_time)
+        )
+        self.scan_metadata["scan_duration"] = f"{end_time - start_time:.2f} seconds"
         return self.results
 
     def print_results(self):
@@ -154,7 +211,7 @@ class PortScanner:
 
         for port in sorted(k for k in self.results.keys() if isinstance(k, int)):
             print(self.results[port])
-        
+
     def get_scan_data(self):
         """Return scan data as a structured dictionary."""
         return {
@@ -169,30 +226,44 @@ class PortScanner:
 
 class MainFrame(Static):
     """the main framework for the application"""
+
     util = Utils()
     data = {
-        "ip" : "",
-        "start_port" : 0,
-        "end_port" : 0,
-        "start_time" : "",
-        "end_time" : "",
-        "scan_duration" : "",
+        "ip": "",
+        "start_port": 0,
+        "end_port": 0,
+        "start_time": "",
+        "end_time": "",
+        "scan_duration": "",
     }
     converted_data = reactive(util.serialize_data(data))
-    
-    @on(Input.Changed,"#ip_input,#start_port_input,#end_port_input")
-    def update_ip_data(self):
+
+    @on(Input.Changed, "#ip_input,#start_port_input,#end_port_input")
+    def update_data(self):
         ip_data = self.query_one("#ip_input")
-        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "ip", ip_data.value)
+        self.converted_data = self.util.update_and_serialize_data(
+            self.converted_data, "ip", ip_data.value
+        )
         # self.update(ip_data.value)
-        
+
         start_port_data = self.query_one("#start_port_input")
-        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "start_port", start_port_data.value)
-        
+        self.converted_data = self.util.update_and_serialize_data(
+            self.converted_data, "start_port", start_port_data.value
+        )
+
         end_port_data = self.query_one("#end_port_input")
-        self.converted_data = self.util.update_and_serialize_data(self.converted_data, "end_port", end_port_data.value)
-        
-    
+        self.converted_data = self.util.update_and_serialize_data(
+            self.converted_data, "end_port", end_port_data.value
+        )
+
+    @on(Input.Changed, "#ip_input,#start_port_input,#end_port_input")
+    def show_invalid_reasons(self, event: Input.Changed):
+        # Updating the UI to show the reasons why validation failed
+        if not event.validation_result.is_valid:
+            self.query_one(Pretty).update(event.validation_result.failure_descriptions)
+        else:
+            self.query_one(Pretty).update([])
+
     # refer a method for onPressed button
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
@@ -202,29 +273,36 @@ class MainFrame(Static):
         ip = self.util.get_value(self.converted_data, "ip")
         start_port = self.util.get_value(self.converted_data, "start_port")
         end_port = self.util.get_value(self.converted_data, "end_port")
-        # start_time = self.util.get_value(self.converted_data, "start_time")
-        # end_time = self.util.get_value(self.converted_data, "end_time")
-        # scan_duration = self.util.get_value(self.converted_data, "scan_duration")
         
-        #start the port scanning
-        portScanner = PortScanner(ip=ip, start_port=int(start_port), end_port=int(end_port))
-        result_data = portScanner.perform_scan()
-        result_summary = portScanner.get_scan_data()
+        error_list = self.util.check_input_validity(ip_address=ip,start_port=start_port, end_port=end_port)
         
-        #display scan results or error if any
-        summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} "
-        
-        table_ui = self.query_one("#table_data")        
-        table_ui.table_data = self.util.convert_to_csv(self.util.dict_to_list_of_tuples(result_data))
-        # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
-        
-        # self.remove_class("scan_started")
-        
-        
+        if len(error_list) != 0:
+             self.query_one(Pretty).update(error_list)
+        else:
+            self.query_one(Pretty).update(['All Input Valid'])
+            # start the port scanning
+            portScanner = PortScanner(
+                ip=ip, start_port=int(start_port), end_port=int(end_port)
+            )
+            result_data = portScanner.perform_scan()
+            result_summary = portScanner.get_scan_data()
+
+            
+            # display scan results or error if any
+            summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} "
+
+            table_ui = self.query_one("#table_data")
+            table_ui.table_data = self.util.convert_to_csv(
+                self.util.dict_to_list_of_tuples(result_data)
+            )
+            # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
+
+            # self.remove_class("scan_started")
 
     def compose(self):
         with ScrollableContainer():
             yield DataInputSection()
+            yield Pretty(f'[Input Validitiy Messages]')
             yield ScannedSummarySection(id="summary")
             yield ScannedPortDataSection(id="table_data")
 
@@ -232,16 +310,36 @@ class MainFrame(Static):
 class DataInputSection(Static):
     """WIdget to input Data"""
 
+    util = Utils()
+
     def compose(self):
         yield Label("IP Address:")
-        yield Input(id="ip_input", placeholder="127.0.0.1")
+        yield Input(
+            id="ip_input",
+            placeholder="127.0.0.1",
+            validators=[
+                Function(self.util.is_valid_ip, "IP address is invalid."),
+            ],
+        )
         yield Label("Start Port:")
         yield Input(
-            id="start_port_input", placeholder="0", type="integer", max_length=65534
+            id="start_port_input",
+            placeholder="0",
+            type="integer",
+            max_length=5,
+            validators=[
+                Number(minimum=0, maximum=65534),
+            ],
         )
         yield Label("End Port:")
         yield Input(
-            id="end_port_input", placeholder="65535", type="integer", max_length=65535
+            id="end_port_input",
+            placeholder="65535",
+            type="integer",
+            max_length=5,
+            validators=[
+                Number(minimum=1, maximum=65535),
+            ],
         )
         yield Button("Start Scan", variant="success", id="start_btn", classes="started")
 
@@ -250,7 +348,7 @@ class ScannedSummarySection(Static):
     """WIdget to show the port summary data"""
 
     summary_data = reactive("")
-    
+
     def watch_summary_data(self):
         """method to watch the change in data"""
         data = self.summary_data
@@ -258,10 +356,13 @@ class ScannedSummarySection(Static):
 
 
 COLUMN = ("Port Number", "Status", "Service Running")
+
+
 class ScannedPortDataSection(Static):
     """WIdget to show the port data"""
+
     util = Utils()
-    
+
     table_data = reactive("")
 
     def watch_table_data(self):
@@ -270,7 +371,7 @@ class ScannedPortDataSection(Static):
         table = self.query_one(DataTable)
         table.clear()
         table.add_rows(self.util.revert_from_csv(data))
-        
+
     def compose(self):
         yield DataTable()
 
@@ -310,7 +411,7 @@ class PortScannerApp(App):
 
     def action_toggle_dark_mode(self):
         self.dark = not self.dark
-        
+
     def action_exit_app(self):
         self.app.exit()
 

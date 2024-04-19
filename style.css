@@ -47,3 +47,8 @@ ScannedSummarySection {
 #table_data{
     height: 40;
 }
+
+Pretty{
+    height: auto;
+    content-align: center middle;
+}
