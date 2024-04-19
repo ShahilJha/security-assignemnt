@@ -60,6 +60,8 @@ class PortScanner:
 
         for port in sorted(k for k in self.results.keys() if isinstance(k, int)):
             print(self.results[port])
+        
+        print(self.results)
 
     def get_scan_data(self):
         """Return scan data as a structured dictionary."""
@@ -76,7 +78,7 @@ class PortScanner:
 if __name__ == "__main__":
     ip = "127.0.0.1"
     start_port = 0
-    end_port = 1025
+    end_port = 10
     scanner = PortScanner(ip, start_port, end_port)
     scanner.perform_scan()
     scanner.print_results()

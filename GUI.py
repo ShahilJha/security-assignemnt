@@ -92,6 +92,14 @@ class PortScanner:
         self.end_port = end_port
         self.max_threads = max_threads
         self.results = {}
+        self.scan_metadata = {
+            "ip": ip,
+            "start_port": start_port,
+            "end_port": end_port,
+            "start_time": "",
+            "end_time": "",
+            "scan_duration": "",
+        }
 
     def scan_port(self, port):
         """Scan a single port and return the result as a dictionary."""
@@ -121,17 +129,17 @@ class PortScanner:
         end_time = time.time()
 
         # Adding timing info to results dictionary
-        self.results['Scan Start Time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))
-        self.results['Scan End Time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
-        self.results['Scan Duration'] = f"{end_time - start_time:.2f} seconds"
+        self.scan_metadata['start_time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))
+        self.scan_metadata['end_time'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
+        self.scan_metadata['scan_duration'] = f"{end_time - start_time:.2f} seconds"
         return self.results
 
     def print_results(self):
         """Print the results of the scan."""
         print(f"Scan Report for {self.ip}")
-        print(f"Scan Start Time: {self.results['Scan Start Time']}")
-        print(f"Scan End Time: {self.results['Scan End Time']}")
-        print(f"Scan Duration: {self.results['Scan Duration']}\n")
+        print(f"Scan Start Time: {self.scan_metadata['start_time']}")
+        print(f"Scan End Time: {self.scan_metadata['end_time']}")
+        print(f"Scan Duration: {self.scan_metadata['scan_duration']}\n")
 
         for port in sorted(k for k in self.results.keys() if isinstance(k, int)):
             print(self.results[port])
@@ -178,20 +186,28 @@ class MainFrame(Static):
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
-        # self.add_class("scan_started")
-        # self.remove_class("scan_started")
+        self.add_class("scan_started")
         summary_ui = self.query_one("ScannedSummarySection")
         ip = self.util.get_value(self.converted_data, "ip")
         start_port = self.util.get_value(self.converted_data, "start_port")
         end_port = self.util.get_value(self.converted_data, "end_port")
-        start_time = self.util.get_value(self.converted_data, "start_time")
-        end_time = self.util.get_value(self.converted_data, "end_time")
-        scan_duration = self.util.get_value(self.converted_data, "scan_duration")
+        # start_time = self.util.get_value(self.converted_data, "start_time")
+        # end_time = self.util.get_value(self.converted_data, "end_time")
+        # scan_duration = self.util.get_value(self.converted_data, "scan_duration")
         
         #start the port scanning
+        portScanner = PortScanner(ip=ip, start_port=int(start_port), end_port=int(end_port))
+        result_data = portScanner.perform_scan()
+        result_summary = portScanner.get_scan_data()
+        table_ui = self.query_one("ScannedPortDataSection")
+        # table_ui.table_data = 
         
         #display scan results or error if any
-        summary_ui.summary_data = f"Scan Report for IP Adress: {ip} \nStarting port: {start_port} \nEnding Port: {end_port} \nScan Start Time: {start_time} \nScan End Time: {end_time} \nScan Duration: {scan_duration}"
+        summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']}"
+        # summary_ui.summary_data = str(type(start_port))
+        self.remove_class("scan_started")
+        
+        
 
     def compose(self):
         with ScrollableContainer():
