@@ -151,6 +151,9 @@ class PortScanner:
         self.end_port = end_port
         self.max_threads = max_threads
         self.results = {}
+        self.open_port = 0
+        self.closed_port = 0
+        self.filtered_port = 0
         self.scan_metadata = {
             "ip": ip,
             "start_port": start_port,
@@ -158,6 +161,9 @@ class PortScanner:
             "start_time": "",
             "end_time": "",
             "scan_duration": "",
+            "open_port_num": "",
+            "close_port_num": "",
+            "filtered_port_num": "",
         }
 
     def scan_port(self, port):
@@ -169,12 +175,16 @@ class PortScanner:
                 if result == 0:
                     service = socket.getservbyport(port, "tcp")
                     status = "OPEN"
+                    self.open_port += 1
                 elif result == 10061:
                     service = "UNKNOWN"
                     status = "CLOSED"
+                    self.closed_port += 1
                 else:
                     service = "UNKNOWN"
                     status = "FILTERED"
+                    self.filtered_port += 1
+                    
 
                 self.results[port] = (port, status, service)
         except Exception as e:
@@ -200,6 +210,11 @@ class PortScanner:
             "%Y-%m-%d %H:%M:%S", time.localtime(end_time)
         )
         self.scan_metadata["scan_duration"] = f"{end_time - start_time:.2f} seconds"
+        
+        self.scan_metadata["open_port_num"] = f"{self.open_port} ports"
+        self.scan_metadata["close_port_num"] = f"{self.closed_port} ports"
+        self.scan_metadata["filtered_port_num"] = f"{self.filtered_port} ports"
+        
         return self.results
 
     def print_results(self):
@@ -221,6 +236,9 @@ class PortScanner:
             "start_time": self.scan_metadata["start_time"],
             "end_time": self.scan_metadata["end_time"],
             "scan_duration": self.scan_metadata["scan_duration"],
+            "open_port_num": self.scan_metadata["open_port_num"],
+            "close_port_num": self.scan_metadata["close_port_num"],
+            "filtered_port_num": self.scan_metadata["filtered_port_num"],
         }
 
 
@@ -289,7 +307,7 @@ class MainFrame(Static):
 
             
             # display scan results or error if any
-            summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} "
+            summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} \nOpen Ports: {result_summary['open_port_num']} \nClose Ports: {result_summary['close_port_num']} \nFIltered Ports: {result_summary['filtered_port_num']}"
 
             table_ui = self.query_one("#table_data")
             table_ui.table_data = self.util.convert_to_csv(
