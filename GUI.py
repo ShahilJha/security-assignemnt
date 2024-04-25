@@ -1,6 +1,7 @@
 # textual run --dev GUI.py
 from textual import on
 import json
+import errno
 from textual.app import App
 from textual.containers import ScrollableContainer
 from textual.reactive import reactive
@@ -145,7 +146,7 @@ class Utils:
 
 
 class PortScanner:
-    def __init__(self, ip, start_port, end_port, max_threads=100):
+    def __init__(self, ip, start_port, end_port, max_threads=5000):
         self.ip = ip
         self.start_port = start_port
         self.end_port = end_port
@@ -170,19 +171,23 @@ class PortScanner:
         """Scan a single port and return the result as a dictionary."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1)
+                s.settimeout(2)
                 result = s.connect_ex((self.ip, port))
                 if result == 0:
                     service = socket.getservbyport(port, "tcp")
                     status = "OPEN"
                     self.open_port += 1
-                elif result == 10061:
-                    service = "UNKNOWN"
+                elif result in [errno.ECONNREFUSED, 10061]:
+                    service = "-"
                     status = "CLOSED"
                     self.closed_port += 1
-                else:
-                    service = "UNKNOWN"
+                elif result in [errno.ETIMEDOUT, errno.EHOSTUNREACH]:
+                    service = "-"
                     status = "FILTERED"
+                    self.filtered_port += 1
+                else:
+                    service = "-"
+                    status = "UNKNOWN"
                     self.filtered_port += 1
                     
 
@@ -307,7 +312,7 @@ class MainFrame(Static):
 
             
             # display scan results or error if any
-            summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} \nOpen Ports: {result_summary['open_port_num']} \nClose Ports: {result_summary['close_port_num']} \nFIltered Ports: {result_summary['filtered_port_num']}"
+            summary_ui.summary_data = f"Scan Report for IP Adress: {result_summary['ip']} \nStarting port: {result_summary['start_port']} \nEnding Port: {result_summary['end_port']} \nScan Start Time: {result_summary['start_time']} \nScan End Time: {result_summary['end_time']} \nScan Duration: {result_summary['scan_duration']} \nOpen Ports: {result_summary['open_port_num']} \nClose Ports: {result_summary['close_port_num']} \nFiltered Ports: {result_summary['filtered_port_num']}"
 
             table_ui = self.query_one("#table_data")
             table_ui.table_data = self.util.convert_to_csv(
