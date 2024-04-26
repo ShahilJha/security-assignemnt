@@ -1,8 +1,6 @@
 MainFrame {
-  layout: vertical; 
+  layout: vertical;
   min-width: 100;
-
-
 }
 
 DataInputSection {
@@ -32,23 +30,31 @@ DataInputSection #end_port_input {
   margin-left: 2;
 }
 
-.scan_started #start_btn{
-    display: none;
+/* #download_btn {
+  display: none;
 }
 
-.scan_stopped #start_btn{
+.can_download #download_btn {
     display: block;
+} */
+
+.scan_started #start_btn {
+  display: none;
+}
+
+.scan_stopped #start_btn {
+  display: block;
 }
 
 ScannedSummarySection {
-    margin: 1;
+  margin: 1;
 }
 
-#table_data{
-    height: 40;
+#table_data {
+  height: 40;
 }
 
-Pretty{
-    height: auto;
-    content-align: center middle;
+Pretty {
+  height: auto;
+  content-align: center middle;
 }

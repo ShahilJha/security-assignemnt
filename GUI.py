@@ -151,6 +151,70 @@ class Utils:
 
         return errors
 
+    def generate_pdf_report(self, scanner):
+        """
+        Generates a PDF report for the results of a PortScanner instance.
+        """
+        # Determine the Downloads folder path based on the operating system
+        home = os.path.expanduser("~")
+        download_path = os.path.join(home, "Downloads")
+        os.makedirs(download_path, exist_ok=True)  # Ensure the directory exists
+        filename = os.path.join(download_path, f"Port_Scan_Report_{scanner.ip}.pdf")
+
+        document = SimpleDocTemplate(filename, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Adding the scan metadata
+        metadata_title = Paragraph("Scan Metadata", styles['Heading1'])
+        elements.append(metadata_title)
+        metadata_info = [
+            f"IP: {scanner.scan_metadata['ip']}",
+            f"Start Port: {scanner.scan_metadata['start_port']}",
+            f"End Port: {scanner.scan_metadata['end_port']}",
+            f"Start Time: {scanner.scan_metadata['start_time']}",
+            f"End Time: {scanner.scan_metadata['end_time']}",
+            f"Duration: {scanner.scan_metadata['scan_duration']}",
+            f"Open Ports: {scanner.scan_metadata['open_port_num']}",
+            f"Closed Ports: {scanner.scan_metadata['close_port_num']}",
+            f"Filtered Ports: {scanner.scan_metadata['filtered_port_num']}",
+        ]
+        for item in metadata_info:
+            elements.append(Paragraph(item, styles['BodyText']))
+            elements.append(Spacer(1, 12))
+
+        # Helper function to create tables for each status
+        def create_status_table(status):
+            data = [[f"Port Number", "Status", "Service"]]
+            filtered_results = [(port, res[1], res[2]) for port, res in scanner.results.items() if res[1] == status]
+            data.extend(filtered_results)
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            return table
+
+        # Adding tables for each port status
+        open_table = create_status_table("OPEN")
+        elements.append(Paragraph("Open Ports", styles['Heading2']))
+        elements.append(open_table)
+        elements.append(Spacer(1, 20))
+
+        filtered_table = create_status_table("FILTERED")
+        elements.append(Paragraph("Filtered Ports", styles['Heading2']))
+        elements.append(filtered_table)
+        elements.append(Spacer(1, 20))
+
+        unknown_table = create_status_table("UNKNOWN")
+        elements.append(Paragraph("Unknown Ports", styles['Heading2']))
+        elements.append(unknown_table)
+
+        document.build(elements)
+        print(f"PDF report generated and saved to: {filename}")
+        # return filename
+        return f"PDF report generated and saved to: {filename}"
 
 class PortScanner:
     def __init__(self, ip, start_port, end_port, max_threads=100):
@@ -196,7 +260,7 @@ class PortScanner:
                     self.filtered_port += 1
                 else:
                     service = "-"
-                    status = "UNKNOWN"
+                    status = "FILTERED"
                     self.filtered_port += 1
 
                 self.results[port] = (port, status, service)
@@ -253,37 +317,6 @@ class PortScanner:
             elements.append(Paragraph(item, styles['BodyText']))
             elements.append(Spacer(1, 12))
 
-        # Helper function to create tables for each status
-        def create_status_table(status):
-            data = [[f"Port Number", "Status", "Service"]]
-            filtered_results = [(port, res[1], res[2]) for port, res in self.results.items() if res[1] == status]
-            data.extend(filtered_results)
-            table = Table(data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
-            return table
-
-        # Adding tables for each port status
-        open_table = create_status_table("OPEN")
-        elements.append(Paragraph("Open Ports", styles['Heading2']))
-        elements.append(open_table)
-        elements.append(Spacer(1, 20))
-
-        filtered_table = create_status_table("FILTERED")
-        elements.append(Paragraph("Filtered Ports", styles['Heading2']))
-        elements.append(filtered_table)
-        elements.append(Spacer(1, 20))
-
-        unknown_table = create_status_table("UNKNOWN")
-        elements.append(Paragraph("Unknown Ports", styles['Heading2']))
-        elements.append(unknown_table)
-
-        document.build(elements)
-        print(f"PDF report generated and saved to: {filename}")
-        return filename
 
     def print_results(self):
         """Print the results of the scan."""
@@ -312,6 +345,7 @@ class PortScanner:
 class MainFrame(Static):
     """the main framework for the application"""
 
+    report_data = None
     util = Utils()
     data = {
         "ip": "",
@@ -354,6 +388,8 @@ class MainFrame(Static):
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
         # self.add_class("scan_started")
+        # self.query_one("#download_btn").remove_class("can_download")
+        
         summary_ui = self.query_one("ScannedSummarySection")
         ip = self.util.get_value(self.converted_data, "ip")
         start_port = self.util.get_value(self.converted_data, "start_port")
@@ -371,6 +407,8 @@ class MainFrame(Static):
             )
             result_data = portScanner.perform_scan()
             result_summary = portScanner.get_scan_data()
+            self.report_data = portScanner
+            self.query_one("#download_btn").add_class("can_download")
 
             
             # display scan results or error if any
@@ -383,12 +421,20 @@ class MainFrame(Static):
             # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
 
             # self.remove_class("scan_started")
+            
+    
+    @on(Button.Pressed, "#download_btn")
+    def pressed_download(self):
+        return_str = Utils().generate_pdf_report(self.report_data)
+        self.query_one(Pretty).update([return_str])
+        
 
     def compose(self):
         with ScrollableContainer():
             yield DataInputSection()
             yield Pretty(f'[Input Validitiy Messages]')
             yield ScannedSummarySection(id="summary")
+            yield Button("Download Report", variant="primary", id="download_btn", classes="cannot_download")
             yield ScannedPortDataSection(id="table_data")
 
 
