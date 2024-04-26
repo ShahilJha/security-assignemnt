@@ -188,31 +188,23 @@ class Utils:
             data = [[f"Port Number", "Status", "Service"]]
             filtered_results = [(port, res[1], res[2]) for port, res in scanner.results.items() if res[1] == status]
             data.extend(filtered_results)
-            table = Table(data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
-            return table
+            if filtered_results:  # Only create table if there are results for this status
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ]))
+                elements.append(Paragraph(f"{status} Ports", styles['Heading2']))
+                elements.append(table)
+                elements.append(Spacer(1, 20))
 
         # Adding tables for each port status
-        open_table = create_status_table("OPEN")
-        elements.append(Paragraph("Open Ports", styles['Heading2']))
-        elements.append(open_table)
-        elements.append(Spacer(1, 20))
-
-        filtered_table = create_status_table("FILTERED")
-        elements.append(Paragraph("Filtered Ports", styles['Heading2']))
-        elements.append(filtered_table)
-        elements.append(Spacer(1, 20))
-
-        unknown_table = create_status_table("UNKNOWN")
-        elements.append(Paragraph("Unknown Ports", styles['Heading2']))
-        elements.append(unknown_table)
+        create_status_table("OPEN")
+        create_status_table("CLOSED")
+        create_status_table("FILTERED")
 
         document.build(elements)
-        print(f"PDF report generated and saved to: {filename}")
         # return filename
         return f"PDF report generated and saved to: {filename}"
 
@@ -288,36 +280,6 @@ class PortScanner:
 
         return self.results
 
-    def generate_pdf_report(self):
-        # Determine the Downloads folder path based on the operating system
-        home = os.path.expanduser("~")
-        download_path = os.path.join(home, "Downloads")
-        os.makedirs(download_path, exist_ok=True)  # Ensure the directory exists
-        filename = os.path.join(download_path, f"Port_Scan_Report_{self.ip}.pdf")
-
-        document = SimpleDocTemplate(filename, pagesize=letter)
-        elements = []
-        styles = getSampleStyleSheet()
-
-        # Adding the scan metadata
-        metadata_title = Paragraph("Scan Metadata", styles['Heading1'])
-        elements.append(metadata_title)
-        metadata_info = [
-            f"IP: {self.scan_metadata['ip']}",
-            f"Start Port: {self.scan_metadata['start_port']}",
-            f"End Port: {self.scan_metadata['end_port']}",
-            f"Start Time: {self.scan_metadata['start_time']}",
-            f"End Time: {self.scan_metadata['end_time']}",
-            f"Duration: {self.scan_metadata['scan_duration']}",
-            f"Open Ports: {self.scan_metadata['open_port_num']}",
-            f"Closed Ports: {self.scan_metadata['close_port_num']}",
-            f"Filtered Ports: {self.scan_metadata['filtered_port_num']}",
-        ]
-        for item in metadata_info:
-            elements.append(Paragraph(item, styles['BodyText']))
-            elements.append(Spacer(1, 12))
-
-
     def print_results(self):
         """Print the results of the scan."""
         print(f"Scan Report for {self.ip}")
@@ -388,7 +350,7 @@ class MainFrame(Static):
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
         # self.add_class("scan_started")
-        # self.query_one("#download_btn").remove_class("can_download")
+        # self.query_one("#download_btn").remove_class("can_download")        
         
         summary_ui = self.query_one("ScannedSummarySection")
         ip = self.util.get_value(self.converted_data, "ip")
@@ -408,7 +370,6 @@ class MainFrame(Static):
             result_data = portScanner.perform_scan()
             result_summary = portScanner.get_scan_data()
             self.report_data = portScanner
-            self.query_one("#download_btn").add_class("can_download")
 
             
             # display scan results or error if any
@@ -418,6 +379,8 @@ class MainFrame(Static):
             table_ui.table_data = self.util.convert_to_csv(
                 self.util.dict_to_list_of_tuples(result_data)
             )
+            self.query_one("#download_btn").add_class("can_download")
+            
             # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
 
             # self.remove_class("scan_started")
