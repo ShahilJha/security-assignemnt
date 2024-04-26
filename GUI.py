@@ -1,6 +1,5 @@
 # textual run --dev GUI.py
 from textual import on
-from scapy.all import sr1, IP, TCP, conf
 import json
 import errno
 from textual.app import App
@@ -18,6 +17,7 @@ from textual.widgets import (
 )
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Semaphore
 from textual.validation import Function, Number, ValidationResult, Validator
 import time
 import re
@@ -147,11 +147,12 @@ class Utils:
 
 
 class PortScanner:
-    def __init__(self, ip, start_port, end_port, max_threads=5000):
+    def __init__(self, ip, start_port, end_port, max_threads=100):
         self.ip = ip
         self.start_port = start_port
         self.end_port = end_port
         self.max_threads = max_threads
+        self.semaphore = Semaphore(max_threads)
         self.results = {}
         self.open_port = 0
         self.closed_port = 0
@@ -167,44 +168,16 @@ class PortScanner:
             "close_port_num": "",
             "filtered_port_num": "",
         }
-        # Reduce verbosity of Scapy
-        conf.verb = 0
-
-    def scan_port(self, port):
-        """Scan a single port using Scapy to send a TCP SYN packet."""
-        tcp_syn_packet = IP(dst=self.ip) / TCP(dport=port, flags="S")
-        response = sr1(tcp_syn_packet, timeout=2)
-
-        if response is not None and response.haslayer(TCP):
-            tcp_layer = response.getlayer(TCP)
-            if tcp_layer.flags == 0x12:  # SYN-ACK
-                service = socket.getservbyport(port, "tcp") if port < 1024 else "-"
-                status = "OPEN"
-                self.open_port += 1
-                # Sending RST to close the connection
-                sr1(IP(dst=self.ip) / TCP(dport=port, flags="R"), timeout=1)
-            elif tcp_layer.flags == 0x14:  # RST-ACK
-                service = "-"
-                status = "CLOSED"
-                self.closed_port += 1
-            else:
-                service = "-"
-                status = "RESERVED/UNKNOWN"
-        else:
-            service = "-"
-            status = "FILTERED"
-            self.filtered_port += 1
-
-        self.results[port] = (port, status, service)
 
     def scan_port(self, port):
         """Scan a single port and return the result as a dictionary."""
+        self.semaphore.acquire()
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(2)
                 result = s.connect_ex((self.ip, port))
                 if result == 0:
-                    service = socket.getservbyport(port, "tcp")
+                    service = socket.getservbyport(port, "tcp") if socket.getservbyport(port, "tcp") else "-"
                     status = "OPEN"
                     self.open_port += 1
                 elif result in [errno.ECONNREFUSED, 10061]:
@@ -219,37 +192,30 @@ class PortScanner:
                     service = "-"
                     status = "UNKNOWN"
                     self.filtered_port += 1
-                    
 
                 self.results[port] = (port, status, service)
         except Exception as e:
             self.results[port] = (port, "ERROR", str(e))
+        finally:
+            self.semaphore.release()
 
     def perform_scan(self):
         """Perform the port scan using ThreadPoolExecutor for managing threads."""
         start_time = time.time()
         with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
-            futures = [
-                executor.submit(self.scan_port, port)
-                for port in range(self.start_port, self.end_port + 1)
-            ]
+            futures = [executor.submit(self.scan_port, port) for port in range(self.start_port, self.end_port + 1)]
             for future in as_completed(futures):
                 future.result()
         end_time = time.time()
 
         # Adding timing info to results dictionary
-        self.scan_metadata["start_time"] = time.strftime(
-            "%Y-%m-%d %H:%M:%S", time.localtime(start_time)
-        )
-        self.scan_metadata["end_time"] = time.strftime(
-            "%Y-%m-%d %H:%M:%S", time.localtime(end_time)
-        )
+        self.scan_metadata["start_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
+        self.scan_metadata["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
         self.scan_metadata["scan_duration"] = f"{end_time - start_time:.2f} seconds"
-        
         self.scan_metadata["open_port_num"] = f"{self.open_port} ports"
         self.scan_metadata["close_port_num"] = f"{self.closed_port} ports"
         self.scan_metadata["filtered_port_num"] = f"{self.filtered_port} ports"
-        
+
         return self.results
 
     def print_results(self):
@@ -275,7 +241,6 @@ class PortScanner:
             "close_port_num": self.scan_metadata["close_port_num"],
             "filtered_port_num": self.scan_metadata["filtered_port_num"],
         }
-
 
 class MainFrame(Static):
     """the main framework for the application"""
