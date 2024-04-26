@@ -189,7 +189,7 @@ class PortScanner:
                 self.closed_port += 1
             else:
                 service = "-"
-                status = "UNKNOWN"
+                status = "RESERVED/UNKNOWN"
         else:
             service = "-"
             status = "FILTERED"
