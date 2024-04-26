@@ -19,7 +19,7 @@ from textual.widgets import (
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Semaphore
-from textual.validation import Function, Number, ValidationResult, Validator
+from textual.validation import Function, Number
 import time
 import re
 from reportlab.lib.pagesizes import letter
