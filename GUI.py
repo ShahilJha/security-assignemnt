@@ -2,6 +2,7 @@
 from textual import on
 import json
 import errno
+import os
 from textual.app import App
 from textual.containers import ScrollableContainer
 from textual.reactive import reactive
@@ -21,6 +22,11 @@ from threading import Semaphore
 from textual.validation import Function, Number, ValidationResult, Validator
 import time
 import re
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 
 
 class Utils:
@@ -217,6 +223,67 @@ class PortScanner:
         self.scan_metadata["filtered_port_num"] = f"{self.filtered_port} ports"
 
         return self.results
+
+    def generate_pdf_report(self):
+        # Determine the Downloads folder path based on the operating system
+        home = os.path.expanduser("~")
+        download_path = os.path.join(home, "Downloads")
+        os.makedirs(download_path, exist_ok=True)  # Ensure the directory exists
+        filename = os.path.join(download_path, f"Port_Scan_Report_{self.ip}.pdf")
+
+        document = SimpleDocTemplate(filename, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Adding the scan metadata
+        metadata_title = Paragraph("Scan Metadata", styles['Heading1'])
+        elements.append(metadata_title)
+        metadata_info = [
+            f"IP: {self.scan_metadata['ip']}",
+            f"Start Port: {self.scan_metadata['start_port']}",
+            f"End Port: {self.scan_metadata['end_port']}",
+            f"Start Time: {self.scan_metadata['start_time']}",
+            f"End Time: {self.scan_metadata['end_time']}",
+            f"Duration: {self.scan_metadata['scan_duration']}",
+            f"Open Ports: {self.scan_metadata['open_port_num']}",
+            f"Closed Ports: {self.scan_metadata['close_port_num']}",
+            f"Filtered Ports: {self.scan_metadata['filtered_port_num']}",
+        ]
+        for item in metadata_info:
+            elements.append(Paragraph(item, styles['BodyText']))
+            elements.append(Spacer(1, 12))
+
+        # Helper function to create tables for each status
+        def create_status_table(status):
+            data = [[f"Port Number", "Status", "Service"]]
+            filtered_results = [(port, res[1], res[2]) for port, res in self.results.items() if res[1] == status]
+            data.extend(filtered_results)
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            return table
+
+        # Adding tables for each port status
+        open_table = create_status_table("OPEN")
+        elements.append(Paragraph("Open Ports", styles['Heading2']))
+        elements.append(open_table)
+        elements.append(Spacer(1, 20))
+
+        filtered_table = create_status_table("FILTERED")
+        elements.append(Paragraph("Filtered Ports", styles['Heading2']))
+        elements.append(filtered_table)
+        elements.append(Spacer(1, 20))
+
+        unknown_table = create_status_table("UNKNOWN")
+        elements.append(Paragraph("Unknown Ports", styles['Heading2']))
+        elements.append(unknown_table)
+
+        document.build(elements)
+        print(f"PDF report generated and saved to: {filename}")
+        return filename
 
     def print_results(self):
         """Print the results of the scan."""
