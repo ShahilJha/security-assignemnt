@@ -1,4 +1,12 @@
+#please run the following install pip commands before running the porgram
+# pip install textual
+# pip install reportlab
+
+#To run the application, you can enter one of the following
+# python GUI.py
 # textual run --dev GUI.py
+
+
 from textual import on
 import json
 import errno
