@@ -30,11 +30,12 @@ DataInputSection #end_port_input {
   margin-left: 2;
 }
 
-/* #download_btn {
-  display: none;
+#download_btn {
+  /* display: none; */
+  margin-bottom: 1;
 }
 
-.can_download #download_btn {
+/* .can_download #download_btn {
     display: block;
 } */
 

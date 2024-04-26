@@ -344,13 +344,14 @@ class MainFrame(Static):
             self.query_one(Pretty).update(event.validation_result.failure_descriptions)
         else:
             self.query_one(Pretty).update([])
-
+        
     # refer a method for onPressed button
     # format: @on(Button.Pressed, "#id")
     @on(Button.Pressed, "#start_btn")
     def pressed_start(self):
         # self.add_class("scan_started")
-        # self.query_one("#download_btn").remove_class("can_download")        
+        # self.query_one("#download_btn").remove_class("can_download") 
+               
         
         summary_ui = self.query_one("ScannedSummarySection")
         ip = self.util.get_value(self.converted_data, "ip")
@@ -379,7 +380,6 @@ class MainFrame(Static):
             table_ui.table_data = self.util.convert_to_csv(
                 self.util.dict_to_list_of_tuples(result_data)
             )
-            self.query_one("#download_btn").add_class("can_download")
             
             # table_ui.table_data = self.util.convert_to_csv([("1","shahil","jha")])
 
@@ -388,8 +388,11 @@ class MainFrame(Static):
     
     @on(Button.Pressed, "#download_btn")
     def pressed_download(self):
-        return_str = Utils().generate_pdf_report(self.report_data)
-        self.query_one(Pretty).update([return_str])
+        if self.report_data == None:
+            self.query_one(Pretty).update(["No scans performed yet"])
+        else:
+            return_str = Utils().generate_pdf_report(self.report_data)
+            self.query_one(Pretty).update([return_str])
         
 
     def compose(self):
