@@ -1,5 +1,6 @@
 # textual run --dev GUI.py
 from textual import on
+from scapy.all import sr1, IP, TCP, conf
 import json
 import errno
 from textual.app import App
@@ -166,6 +167,35 @@ class PortScanner:
             "close_port_num": "",
             "filtered_port_num": "",
         }
+        # Reduce verbosity of Scapy
+        conf.verb = 0
+
+    def scan_port(self, port):
+        """Scan a single port using Scapy to send a TCP SYN packet."""
+        tcp_syn_packet = IP(dst=self.ip) / TCP(dport=port, flags="S")
+        response = sr1(tcp_syn_packet, timeout=2)
+
+        if response is not None and response.haslayer(TCP):
+            tcp_layer = response.getlayer(TCP)
+            if tcp_layer.flags == 0x12:  # SYN-ACK
+                service = socket.getservbyport(port, "tcp") if port < 1024 else "-"
+                status = "OPEN"
+                self.open_port += 1
+                # Sending RST to close the connection
+                sr1(IP(dst=self.ip) / TCP(dport=port, flags="R"), timeout=1)
+            elif tcp_layer.flags == 0x14:  # RST-ACK
+                service = "-"
+                status = "CLOSED"
+                self.closed_port += 1
+            else:
+                service = "-"
+                status = "UNKNOWN"
+        else:
+            service = "-"
+            status = "FILTERED"
+            self.filtered_port += 1
+
+        self.results[port] = (port, status, service)
 
     def scan_port(self, port):
         """Scan a single port and return the result as a dictionary."""
